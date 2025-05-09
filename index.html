@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Tropical Chat Room</title>
+    <style>
+        body {
+            background-color: #000033;
+            background-image: url('https://i.gifer.com/embedded/download/Wg1.gif');
+            color: #00ff00;
+            font-family: "Comic Sans MS", cursive, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        header {
+            background-color: #000066;
+            text-align: center;
+            padding: 10px;
+            border-bottom: 3px solid #00ffff;
+        }
+        
+        h1 {
+            color: #ffcc00;
+            text-shadow: 2px 2px 4px #ff00ff;
+            font-size: 24px;
+            margin: 0;
+            padding: 5px;
+        }
+        
+        .container {
+            display: flex;
+            flex: 1;
+            padding: 10px;
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(0, 0, 51, 0.8);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px #00ffff;
+            margin-right: 10px;
+        }
+        
+        .users-container {
+            width: 150px;
+            background-color: rgba(0, 0, 51, 0.8);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px #00ffff;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            color: #ffffff;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            word-wrap: break-word;
+        }
+        
+        .username {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        .input-container {
+            display: flex;
+            padding: 10px;
+            background-color: #000033;
+            border-top: 2px solid #00ffff;
+        }
+        
+        #message-input {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid #ff00ff;
+            border-radius: 5px;
+            background-color: #000033;
+            color: #00ffff;
+            font-family: "Comic Sans MS", cursive, sans-serif;
+        }
+        
+        button {
+            background-color: #ff00ff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            margin-left: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: "Comic Sans MS", cursive, sans-serif;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background-color: #cc00cc;
+        }
+        
+        .online-user {
+            margin-bottom: 5px;
+            color: #00ffff;
+        }
+        
+        .login-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 51, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .login-box {
+            background-color: #000066;
+            border: 3px solid #00ffff;
+            border-radius: 10px;
+            padding: 20px;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 0 20px #ff00ff;
+        }
+        
+        .login-box h2 {
+            color: #ffcc00;
+            margin-top: 0;
+        }
+        
+        .login-box input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 2px solid #ff00ff;
+            border-radius: 5px;
+            background-color: #000033;
+            color: #00ffff;
+            font-family: "Comic Sans MS", cursive, sans-serif;
+        }
+        
+        .marquee {
+            background-color: #000066;
+            color: #ffff00;
+            padding: 5px;
+            overflow: hidden;
+            white-space: nowrap;
+            box-shadow: inset 0 0 10px #ff00ff;
+        }
+        
+        .marquee-content {
+            display: inline-block;
+            animation: marquee 15s linear infinite;
+        }
+        
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        .blink {
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        
+        /* Added for wallet connection */
+        #wallet-address {
+            font-size: 12px;
+            color: #ffcc00;
+            margin-top: 10px;
+            word-break: break-all;
+        }
+        
+        .emoji-picker {
+            display: flex;
+            padding: 5px;
+            background-color: #000044;
+            border-top: 1px solid #00ffff;
+            overflow-x: auto;
+        }
+        
+        .emoji {
+            margin: 0 5px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Modal -->
+    <div class="login-container" id="login-modal">
+        <div class="login-box">
+            <h2 class="blink">Welcome to TropiChat!</h2>
+            <p>Connect your wallet to enter the chat room</p>
+            <button id="connect-wallet">Connect Wallet</button>
+            <div id="wallet-status"></div>
+            <div id="username-container" style="display:none;">
+                <input type="text" id="username-input" placeholder="Choose a Username">
+                <button id="enter-chat">Enter Chat</button>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <h1>🌴 TropiChat 🌴</h1>
+        <div class="marquee">
+            <div class="marquee-content">
+                Welcome to TropiChat - the coolest place on the web! Remember to be kind to other chatters! No spamming or flooding the chat! Have fun! 🌴 🏄 🌊 ☀️
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <div class="message">
+                    <span class="username" style="color: #ffcc00;">TropiChat:</span>
+                    <span>Welcome to TropiChat! Connect your wallet to join the conversation!</span>
+                </div>
+            </div>
+            
+            <div class="emoji-picker">
+                <span class="emoji" onclick="addEmoji('😊')">😊</span>
+                <span class="emoji" onclick="addEmoji('😂')">😂</span>
+                <span class="emoji" onclick="addEmoji('❤️')">❤️</span>
+                <span class="emoji" onclick="addEmoji('👍')">👍</span>
+                <span class="emoji" onclick="addEmoji('🔥')">🔥</span>
+                <span class="emoji" onclick="addEmoji('🌴')">🌴</span>
+                <span class="emoji" onclick="addEmoji('🏄')">🏄</span>
+                <span class="emoji" onclick="addEmoji('🌊')">🌊</span>
+                <span class="emoji" onclick="addEmoji('☀️')">☀️</span>
+                <span class="emoji" onclick="addEmoji('🍹')">🍹</span>
+            </div>
+            
+            <div class="input-container">
+                <input type="text" id="message-input" placeholder="Type your message..." disabled>
+                <button id="send-button" disabled>Send</button>
+            </div>
+        </div>
+        
+        <div class="users-container">
+            <h3 style="color: #ffcc00; text-align: center; margin-top: 0;">Online Users</h3>
+            <div id="online-users">
+                <!-- Users will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Web3 Library -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
+    
+    <script>
+        // Chat variables
+        let currentUser = null;
+        let walletConnected = false;
+        let walletAddress = null;
+        
+        // DOM elements
+        const loginModal = document.getElementById('login-modal');
+        const connectWalletBtn = document.getElementById('connect-wallet');
+        const walletStatus = document.getElementById('wallet-status');
+        const usernameContainer = document.getElementById('username-container');
+        const usernameInput = document.getElementById('username-input');
+        const enterChatBtn = document.getElementById('enter-chat');
+        const chatMessages = document.getElementById('chat-messages');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const onlineUsersContainer = document.getElementById('online-users');
+        
+        // User colors
+        const userColors = [
+            '#FF5733', '#33FF57', '#3357FF', '#FF33A6', '#33FFF5',
+            '#F5FF33', '#FF5733', '#C70039', '#900C3F', '#FFC300'
+        ];
+        
+        // Mock online users
+        const mockUsers = [
+            'SurfDude92', 'BeachGirl', 'TropicalStorm', 'CoconutLover',
+            'IslandHopper', 'WaveRider', 'SunnyDayz'
+        ];
+        
+        // Add mock users to the online users list
+        function populateMockUsers() {
+            mockUsers.forEach(user => {
+                const randomColor = userColors[Math.floor(Math.random() * userColors.length)];
+                const userElement = document.createElement('div');
+                userElement.classList.add('online-user');
+                userElement.textContent = user;
+                userElement.style.color = randomColor;
+                onlineUsersContainer.appendChild(userElement);
+            });
+        }
+        
+        // Initialize the chat
+        function initChat() {
+            populateMockUsers();
+            
+            // Welcome messages
+            addSystemMessage("Welcome to TropiChat! Please be respectful to all users.");
+            addSystemMessage("Type /help for available commands.");
+            
+            // Event listeners
+            connectWalletBtn.addEventListener('click', connectWallet);
+            enterChatBtn.addEventListener('click', enterChat);
+            sendButton.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        }
+        
+        // Connect wallet function
+        async function connectWallet() {
+            if (window.ethereum) {
+                try {
+                    // Request account access
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    walletAddress = accounts[0];
+                    walletConnected = true;
+                    
+                    // Show success message
+                    walletStatus.innerHTML = `
+                        <p style="color: #00ff00;">Wallet connected!</p>
+                        <div id="wallet-address">${walletAddress}</div>
+                    `;
+                    
+                    // Show username input
+                    usernameContainer.style.display = 'block';
+                    connectWalletBtn.style.display = 'none';
+                    
+                } catch (error) {
+                    console.error(error);
+                    walletStatus.innerHTML = `
+                        <p style="color: #ff0000;">Error connecting wallet: ${error.message}</p>
+                    `;
+                }
+            } else {
+                walletStatus.innerHTML = `
+                    <p style="color: #ff0000;">MetaMask not found! Please install MetaMask to continue.</p>
+                `;
+            }
+        }
+        
+        // Enter chat function
+        function enterChat() {
+            const username = usernameInput.value.trim();
+            
+            if (username) {
+                currentUser = {
+                    name: username,
+                    color: userColors[Math.floor(Math.random() * userColors.length)],
+                    wallet: walletAddress
+                };
+                
+                // Close login modal
+                loginModal.style.display = 'none';
+                
+                // Enable chat functionality
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                
+                // Add user to online users
+                const userElement = document.createElement('div');
+                userElement.classList.add('online-user');
+                userElement.textContent = currentUser.name;
+                userElement.style.color = currentUser.color;
+                onlineUsersContainer.appendChild(userElement);
+                
+                // Announce user joined
+                addSystemMessage(`${currentUser.name} has joined the chat!`);
+            } else {
+                alert('Please enter a username!');
+            }
+        }
+        
+        // Add a system message
+        function addSystemMessage(text) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            const usernameSpan = document.createElement('span');
+            usernameSpan.classList.add('username');
+            usernameSpan.style.color = '#ffcc00';
+            usernameSpan.textContent = 'TropiChat:';
+            
+            const messageText = document.createElement('span');
+            messageText.textContent = ' ' + text;
+            
+            messageElement.appendChild(usernameSpan);
+            messageElement.appendChild(messageText);
+            
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Add a user message
+        function addUserMessage(user, text) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            const usernameSpan = document.createElement('span');
+            usernameSpan.classList.add('username');
+            usernameSpan.style.color = user.color;
+            usernameSpan.textContent = user.name + ':';
+            
+            const messageText = document.createElement('span');
+            messageText.innerHTML = ' ' + formatMessage(text);
+            
+            messageElement.appendChild(usernameSpan);
+            messageElement.appendChild(messageText);
+            
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Format message - convert URLs to links, etc.
+        function formatMessage(text) {
+            // Convert URLs to clickable links
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, function(url) {
+                return `<a href="${url}" target="_blank" style="color: #00ffff;">${url}</a>`;
+            });
+        }
+        
+        // Send message function
+        function sendMessage() {
+            const messageText = messageInput.value.trim();
+            
+            if (messageText && currentUser) {
+                // Check for commands
+                if (messageText.startsWith('/')) {
+                    handleCommand(messageText);
+                } else {
+                    // Regular message
+                    addUserMessage(currentUser, messageText);
+                    
+                    // Simulate responses from mock users (25% chance)
+                    if (Math.random() < 0.25) {
+                        setTimeout(() => {
+                            const randomUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
+                            const randomColor = userColors[Math.floor(Math.random() * userColors.length)];
+                            const mockResponses = [
+                                `Hey ${currentUser.name}, nice to meet you!`,
+                                `I agree with what ${currentUser.name} said.`,
+                                `Has anyone been to the beach today?`,
+                                `${currentUser.name}, that's interesting! Tell us more.`,
+                                `Welcome to TropiChat ${currentUser.name}! 🌴`,
+                                `Cool! 🏄‍♂️`,
+                                `lol 😂`,
+                                `brb getting a tropical drink 🍹`
+                            ];
+                            const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+                            
+                            addUserMessage({name: randomUser, color: randomColor}, randomResponse);
+                        }, 1000 + Math.random() * 2000);
+                    }
+                }
+                
+                // Clear input
+                messageInput.value = '';
+            }
+        }
+        
+        // Handle chat commands
+        function handleCommand(command) {
+            const cmd = command.toLowerCase();
+            
+            if (cmd === '/help') {
+                addSystemMessage("Available commands: /help, /clear, /shrug, /me [action], /color [hex]");
+            } else if (cmd === '/clear') {
+                chatMessages.innerHTML = '';
+                addSystemMessage("Chat cleared.");
+            } else if (cmd === '/shrug') {
+                addUserMessage(currentUser, '¯\\_(ツ)_/¯');
+            } else if (cmd.startsWith('/me ')) {
+                const action = command.substring(4);
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                messageElement.style.color = '#ff00ff';
+                messageElement.textContent = `* ${currentUser.name} ${action}`;
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else if (cmd.startsWith('/color ')) {
+                const color = command.substring(7);
+                if (color.match(/^#[0-9A-F]{6}$/i)) {
+                    currentUser.color = color;
+                    addSystemMessage(`Your color has been changed.`);
+                } else {
+                    addSystemMessage(`Invalid color format. Use hexadecimal: /color #FF5733`);
+                }
+            } else {
+                addSystemMessage(`Unknown command: ${command}`);
+            }
+        }
+        
+        // Add emoji to message input
+        function addEmoji(emoji) {
+            if (!messageInput.disabled) {
+                messageInput.value += emoji;
+                messageInput.focus();
+            }
+        }
+        
+        // Initialize the chat
+        initChat();
+    </script>
+</body>
+</html>
