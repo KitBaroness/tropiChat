@@ -98,10 +98,50 @@ button {
     cursor: pointer;
     font-family: "Comic Sans MS", cursive, sans-serif;
     font-weight: bold;
+    transition: all 0.3s ease;
 }
 
 button:hover {
     background-color: #cc00cc;
+    transform: scale(1.05);
+}
+
+.glow-button {
+    background-color: #ff00ff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    margin: 10px 0;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: "Comic Sans MS", cursive, sans-serif;
+    font-weight: bold;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 10px #ff00ff;
+    animation: button-pulse 2s infinite;
+}
+
+.glow-button:hover {
+    background-color: #cc00cc;
+    box-shadow: 0 0 20px #ff00ff;
+    animation: button-pulse-hover 1s infinite;
+}
+
+.glow-button:active {
+    transform: scale(0.95);
+}
+
+@keyframes button-pulse {
+    0% { box-shadow: 0 0 10px #ff00ff; }
+    50% { box-shadow: 0 0 20px #ff00ff; }
+    100% { box-shadow: 0 0 10px #ff00ff; }
+}
+
+@keyframes button-pulse-hover {
+    0% { box-shadow: 0 0 15px #ff00ff; }
+    50% { box-shadow: 0 0 25px #ff00ff; }
+    100% { box-shadow: 0 0 15px #ff00ff; }
 }
 
 .online-user {
@@ -184,6 +224,58 @@ button:hover {
     color: #ffcc00;
     margin-top: 10px;
     word-break: break-all;
+}
+
+/* Wallet Connection Spinner */
+.spinner {
+    margin: 15px auto;
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(0, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #00ffff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Status indicator for wallet connection */
+.status-connecting {
+    color: #ffcc00;
+    animation: pulse 1.5s infinite;
+}
+
+.status-success {
+    color: #00ff00;
+    animation: success-glow 2s 1;
+}
+
+.status-error {
+    color: #ff0000;
+    animation: error-shake 0.5s 1;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+@keyframes success-glow {
+    0% { text-shadow: 0 0 5px rgba(0, 255, 0, 0.5); }
+    50% { text-shadow: 0 0 20px rgba(0, 255, 0, 0.8); }
+    100% { text-shadow: 0 0 5px rgba(0, 255, 0, 0.5); }
+}
+
+@keyframes error-shake {
+    0% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+    100% { transform: translateX(0); }
 }
 
 /* Emoji Picker Styles */

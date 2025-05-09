@@ -185,60 +185,185 @@ const debug = (function() {
     }
     
     /**
-     * Run debug command
-     */
-    function runCommand() {
-        const commandInput = document.querySelector('#debug-command');
-        const command = commandInput.value.trim();
-        
-        if (!command) return;
-        
-        // Log command
-        log('> ' + command, 'command');
-        
-        // Process command
-        try {
-            if (command === 'clear') {
-                clearConsole();
-            } else if (command === 'info') {
-                logSystemInfo();
-            } else if (command === 'detect') {
-                if (wallet && typeof wallet.getAvailableProviders === 'function') {
-                    const providers = wallet.getAvailableProviders();
-                    log('Detected wallet providers: ' + (providers.length ? providers.join(', ') : 'none'), 'info');
-                } else {
-                    log('Wallet module not available or missing getAvailableProviders method', 'error');
-                }
-            } else if (command === 'connect') {
-                if (wallet && typeof wallet.connect === 'function') {
-                    log('Trying to connect wallet...', 'info');
-                    wallet.connect();
-                } else {
-                    log('Wallet module not available or missing connect method', 'error');
-                }
-            } else if (command === 'help') {
-                log('Available commands:', 'info');
-                log('  help - Show this help', 'info');
-                log('  clear - Clear console', 'info');
-                log('  info - Show system info', 'info');
-                log('  detect - Detect wallet providers', 'info');
-                log('  connect - Try to connect wallet', 'info');
-                log('  localStorage - Show localStorage items', 'info');
-            } else if (command === 'localStorage') {
-                logLocalStorage();
-            } else {
-                // Try to evaluate the command
-                const result = eval(command);
-                log('Result: ' + JSON.stringify(result), 'info');
-            }
-        } catch (error) {
-            log('Error: ' + error.message, 'error');
+ * Run debug command
+ */
+function runCommand() {
+    const commandInput = document.querySelector('#debug-command');
+    const command = commandInput.value.trim();
+    
+    if (!command) return;
+    
+    // Log command
+    log('> ' + command, 'command');
+    
+    // Process command
+    try {
+        if (command === 'clear') {
+            clearConsole();
+        } else if (command === 'info') {
+            logSystemInfo();
+        } else if (command === 'detect') {
+            detectWallets();
+        } else if (command === 'connect') {
+            tryConnectWallet();
+        } else if (command === 'help') {
+            log('Available commands:', 'info');
+            log('  help - Show this help', 'info');
+            log('  clear - Clear console', 'info');
+            log('  info - Show system info', 'info');
+            log('  detect - Detect wallet providers', 'info');
+            log('  connect - Try to connect wallet', 'info');
+            log('  localStorage - Show localStorage items', 'info');
+            log('  resetWallet - Reset wallet connection', 'info');
+            log('  checkNetwork - Check connected network', 'info');
+        } else if (command === 'localStorage') {
+            logLocalStorage();
+        } else if (command === 'resetWallet') {
+            resetWalletConnection();
+        } else if (command === 'checkNetwork') {
+            checkNetwork();
+        } else {
+            // Try to evaluate the command
+            const result = eval(command);
+            log('Result: ' + JSON.stringify(result), 'info');
         }
-        
-        // Clear input
-        commandInput.value = '';
-        commandInput.focus();
+    } catch (error) {
+        log('Error: ' + error.message, 'error');
     }
+    
+    // Clear input
+    commandInput.value = '';
+    commandInput.focus();
+}
+
+/**
+ * Detect available wallets
+ */
+function detectWallets() {
+    log('Detecting wallet providers...', 'info');
+    
+    // Check Ethereum providers
+    if (typeof window.ethereum !== 'undefined') {
+        log('✓ Ethereum provider detected', 'success');
+        
+        try {
+            if (window.ethereum.isMetaMask) {
+                log('  ✓ MetaMask is available', 'success');
+            }
+            
+            if (window.ethereum.isBraveWallet) {
+                log('  ✓ Brave Wallet is available', 'success');
+            }
+            
+            if (window.ethereum.isCoinbaseWallet) {
+                log('  ✓ Coinbase Wallet is available', 'success');
+            }
+            
+            log('  ✓ Ethereum accounts can be requested with eth_requestAccounts', 'success');
+        } catch (err) {
+            log(`  ✗ Error checking provider details: ${err.message}`, 'error');
+        }
+    } else {
+        log('✗ No Ethereum provider detected', 'error');
+    }
+    
+    // Check Solana providers
+    if (typeof window.solana !== 'undefined') {
+        log('✓ Solana provider detected', 'success');
+        
+        try {
+            if (window.solana.isPhantom) {
+                log('  ✓ Phantom is available', 'success');
+            }
+            
+            if (typeof window.solana.connect === 'function') {
+                log('  ✓ Solana connect method is available', 'success');
+            } else {
+                log('  ✗ Solana connect method is not available', 'error');
+            }
+        } catch (err) {
+            log(`  ✗ Error checking Solana details: ${err.message}`, 'error');
+        }
+    } else {
+        log('✗ No Solana provider detected', 'error');
+    }
+    
+    log('Detection complete. Try the "connect" command to connect to a wallet.', 'info');
+}
+
+/**
+ * Try to connect to wallet
+ */
+function tryConnectWallet() {
+    log('Attempting to connect to wallet...', 'info');
+    
+    if (typeof wallet !== 'undefined' && typeof wallet.connect === 'function') {
+        wallet.connect();
+        log('Connection request sent. Check wallet popup or notification.', 'info');
+    } else {
+        log('Wallet module not available or missing connect method', 'error');
+    }
+}
+
+/**
+ * Reset wallet connection
+ */
+function resetWalletConnection() {
+    log('Resetting wallet connection...', 'info');
+    
+    try {
+        // Clear any stored connection data
+        localStorage.removeItem('walletconnect');
+        localStorage.removeItem('WALLETCONNECT_DEEPLINK_CHOICE');
+        
+        // Reload the page
+        if (confirm('Reset wallet connection data and reload page?')) {
+            window.location.reload();
+        }
+    } catch (error) {
+        log(`Error resetting wallet: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Check connected network
+ */
+function checkNetwork() {
+    log('Checking connected network...', 'info');
+    
+    if (typeof window.ethereum !== 'undefined') {
+        window.ethereum.request({ method: 'eth_chainId' })
+            .then(chainId => {
+                const networks = {
+                    '0x1': 'Ethereum Mainnet',
+                    '0x3': 'Ropsten Testnet',
+                    '0x4': 'Rinkeby Testnet',
+                    '0x5': 'Goerli Testnet',
+                    '0x2a': 'Kovan Testnet',
+                    '0x38': 'Binance Smart Chain',
+                    '0x89': 'Polygon (Matic)',
+                    '0xa86a': 'Avalanche',
+                    '0xa': 'Optimism',
+                    '0xfa': 'Fantom'
+                };
+                
+                const networkName = networks[chainId] || `Unknown network (${chainId})`;
+                log(`Connected to: ${networkName}`, 'success');
+            })
+            .catch(error => {
+                log(`Error getting network: ${error.message}`, 'error');
+            });
+    } else if (typeof window.solana !== 'undefined') {
+        try {
+            const network = window.solana.connection ? window.solana.connection.rpcEndpoint : 'unknown';
+            log(`Connected to Solana network: ${network}`, 'success');
+        } catch (error) {
+            log(`Error getting Solana network: ${error.message}`, 'error');
+        }
+    } else {
+        log('No Ethereum or Solana provider detected', 'error');
+    }
+}
     
     /**
      * Clear console
