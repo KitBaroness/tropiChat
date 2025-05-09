@@ -56,10 +56,15 @@ const chat = (function() {
         const username = usernameInput.value.trim();
         
         if (username) {
+            // Get wallet address
+            const address = wallet.getAddress();
+            const walletProvider = wallet.getProviderName();
+            
             _currentUser = {
                 name: username,
                 color: CONFIG.USER_COLORS[Math.floor(Math.random() * CONFIG.USER_COLORS.length)],
-                wallet: wallet.getAddress()
+                wallet: address,
+                provider: walletProvider
             };
             
             // Close login modal
@@ -78,6 +83,15 @@ const chat = (function() {
             
             // Announce user joined
             addSystemMessage(`${_currentUser.name} has joined the chat!`);
+            
+            // Save user profile if the app has this function available
+            if (window.appFunctions && window.appFunctions.saveUserProfile) {
+                window.appFunctions.saveUserProfile(address, username);
+            }
+            
+            // If you're implementing server-side functionality later,
+            // this is where you would emit a "join" event to the server
+            // Example: socket.emit('join', { username, address, color: _currentUser.color });
         } else {
             alert('Please enter a username!');
         }
