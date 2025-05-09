@@ -7,7 +7,8 @@
     let appState = {
         initialized: false,
         walletConnected: false,
-        userLoggedIn: false
+        userLoggedIn: false,
+        debug: true // Enable debug mode
     };
     
     // Initialize the application when the DOM is loaded
@@ -19,6 +20,9 @@
     function initApp() {
         console.log(`${CONFIG.APP_NAME} is initializing...`);
         
+        // Debug browser environment
+        debugEnvironment();
+        
         // Initialize wallet module with callback
         wallet.init(onWalletConnected);
         
@@ -28,8 +32,35 @@
         // Check if browser supports Web3
         checkWeb3Support();
         
+        // Display wallet options based on detected providers
+        updateWalletUI();
+        
         appState.initialized = true;
         console.log(`${CONFIG.APP_NAME} initialization complete.`);
+    }
+    
+    /**
+     * Debug the browser environment
+     */
+    function debugEnvironment() {
+        if (!appState.debug) return;
+        
+        console.log("Browser environment:");
+        console.log("User Agent:", navigator.userAgent);
+        console.log("window.ethereum:", typeof window.ethereum !== 'undefined');
+        console.log("window.solana:", typeof window.solana !== 'undefined');
+        console.log("window.WalletConnectProvider:", typeof window.WalletConnectProvider !== 'undefined');
+        
+        // Check for specific browser extensions
+        const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+        const isFirefox = /Firefox/.test(navigator.userAgent);
+        const isBrave = navigator.brave && await navigator.brave.isBrave() || false;
+        
+        console.log("Browser:", {
+            isChrome,
+            isFirefox,
+            isBrave
+        });
     }
     
     /**
@@ -38,14 +69,55 @@
     function checkWeb3Support() {
         const hasEthereum = typeof window.ethereum !== 'undefined';
         const hasSolana = typeof window.solana !== 'undefined';
+        const hasWalletConnect = typeof window.WalletConnectProvider !== 'undefined';
         
-        if (!hasEthereum && !hasSolana) {
+        console.log("Web3 support:", {
+            ethereum: hasEthereum,
+            solana: hasSolana,
+            walletConnect: hasWalletConnect
+        });
+        
+        if (!hasEthereum && !hasSolana && !hasWalletConnect) {
             // Display a message about missing wallet support
             const walletStatus = document.getElementById('wallet-status');
-            walletStatus.innerHTML = `
-                <p style="color: #ffaa00;">No wallet detected! You'll need a Web3 wallet to join the chat.</p>
-                <p style="font-size: 12px;">Try installing a wallet extension for your browser.</p>
-            `;
+            if (walletStatus) {
+                walletStatus.innerHTML = `
+                    <p style="color: #ffaa00;">No wallet detected! You'll need a Web3 wallet to join the chat.</p>
+                    <p style="font-size: 12px;">
+                        Try installing one of these wallets:
+                        <a href="https://metamask.io/download/" target="_blank" style="color: #00ffff;">MetaMask</a>,
+                        <a href="https://phantom.app/download" target="_blank" style="color: #00ffff;">Phantom</a>, or
+                        <a href="https://www.coinbase.com/wallet" target="_blank" style="color: #00ffff;">Coinbase Wallet</a>
+                    </p>
+                `;
+            }
+        }
+    }
+    
+    /**
+     * Update wallet UI based on detected providers
+     */
+    function updateWalletUI() {
+        const availableProviders = wallet.getAvailableProviders();
+        const walletStatus = document.getElementById('wallet-status');
+        const walletInfoDiv = document.getElementById('wallet-info');
+        
+        if (walletInfoDiv && availableProviders.length > 0) {
+            let detectedWallets = [];
+            
+            if (availableProviders.includes('metamask')) detectedWallets.push('MetaMask');
+            if (availableProviders.includes('brave')) detectedWallets.push('Brave Wallet');
+            if (availableProviders.includes('coinbase')) detectedWallets.push('Coinbase Wallet');
+            if (availableProviders.includes('phantom')) detectedWallets.push('Phantom');
+            if (availableProviders.includes('solflare')) detectedWallets.push('Solflare');
+            
+            if (detectedWallets.length > 0) {
+                walletInfoDiv.innerHTML = `
+                    <p style="color: #00ffff; margin-top: 15px;">
+                        Detected wallets: ${detectedWallets.join(', ')}
+                    </p>
+                `;
+            }
         }
     }
     
