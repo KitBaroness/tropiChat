@@ -11,6 +11,9 @@ This is a nostalgic 90s-style chat room implementation with multi-wallet web3 au
 - 💬 Chat commands like /help, /clear, /shrug, /me, and /color
 - 🎨 Fully responsive design that works on mobile and desktop
 - 🧩 Modular architecture for easy extension and maintenance
+- 🔄 Optional peer-to-peer (P2P) implementation with WebRTC
+- 🔐 Web3 wallet-based authentication and message signing
+- 👥 Multi-user real-time chat capabilities
 
 ## File Structure
 
@@ -24,7 +27,15 @@ tropichat/
 │   ├── wallet.js            # Multi-wallet Web3 connection functionality
 │   ├── chat.js              # Chat room functionality
 │   ├── app.js               # Main application initialization
-│   └── debug.js             # Debug console for troubleshooting
+│   ├── debug.js             # Debug console for troubleshooting
+│   ├── p2p-client.js        # WebRTC peer-to-peer client (P2P mode)
+│   ├── p2p-webrtc-architecture.js # P2P architecture diagram
+│   ├── server.js            # Backend server (Multi-user mode)
+│   ├── socket-client.js     # Socket.io client (Multi-user mode)
+│   └── web3-p2p-wallet-auth.js # Web3 wallet authentication for P2P
+├── docs/
+│   ├── MULTI-USER INTEGRATION GUIDE.md # Guide for implementing multi-user mode
+│   └── P2P-CHAT-IMPLEMENTATION.md      # Guide for implementing P2P mode
 └── README.md                # This documentation file
 ```
 
@@ -57,7 +68,15 @@ The chat room supports multiple wallet providers:
 
 Users only need to have one of these wallets installed in their browser to connect.
 
-### 4. Production Implementation
+### 4. Implementation Options
+
+TropiChat now offers multiple implementation options:
+
+#### A. Single-User Demo Mode
+
+The default mode is a client-side only demo that simulates chat with mock responses. This is perfect for testing and development.
+
+#### B. Multi-User Mode with Central Server
 
 For a full implementation with server-side functionality, you'll need:
 
@@ -65,7 +84,7 @@ For a full implementation with server-side functionality, you'll need:
 - Socket.io for real-time communication
 - MongoDB or another database to store chat history and user information
 
-#### Backend Implementation Example
+**Backend Implementation Example:**
 
 ```javascript
 // server.js
@@ -177,6 +196,64 @@ server.listen(PORT, () => {
 });
 ```
 
+See the `MULTI-USER INTEGRATION GUIDE.md` for more detailed implementation instructions.
+
+#### C. Peer-to-Peer (P2P) Mode
+
+TropiChat now supports a decentralized peer-to-peer architecture using WebRTC:
+
+1. **Direct Communication**: Users connect directly to each other without messages passing through a central server
+2. **Enhanced Privacy**: Messages can be end-to-end encrypted using wallet keys
+3. **Wallet Authentication**: Uses wallet signatures to verify user identity
+4. **Minimal Server**: Only requires a small signaling server for initial connections
+
+**P2P Implementation Steps:**
+
+1. Set up a minimal signaling server:
+```javascript
+// Minimal signaling server example
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+io.on('connection', (socket) => {
+  console.log('New connection:', socket.id);
+  
+  // Handle authentication
+  socket.on('authenticate', (userData) => {
+    // Verify wallet signature (can be added)
+    socket.broadcast.emit('peer_joined', userData);
+  });
+  
+  // WebRTC signaling
+  socket.on('signal', (data) => {
+    const { peerId, signal } = data;
+    io.to(peerId).emit('signal', {
+      peerId: socket.id,
+      signal
+    });
+  });
+  
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    socket.broadcast.emit('peer_left', { id: socket.id });
+  });
+});
+
+server.listen(3000, () => console.log('Signaling server running on port 3000'));
+```
+
+2. Include WebRTC libraries:
+```html
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+```
+
+For complete P2P implementation details, see the `P2P-CHAT-IMPLEMENTATION.md` guide.
+
 ### 5. Debugging
 
 The chat room includes a built-in debug console that can help troubleshoot wallet connection issues:
@@ -220,3 +297,23 @@ When implementing this chat in production:
 3. Add moderation tools for inappropriate content
 4. Consider encrypting messages for privacy
 5. Store sensitive data securely and follow data protection regulations
+
+### 8. Advanced P2P Features
+
+The P2P implementation supports several advanced features:
+
+1. **End-to-End Encryption**:
+   - Messages can be encrypted using wallet keys
+   - Only the intended recipients can decrypt messages
+   
+2. **NFT-Gated Chat Rooms**:
+   - Create exclusive chat rooms that require NFT ownership
+   - Verify NFT ownership through wallet authentication
+   
+3. **Decentralized Identity**:
+   - Integrate with DIDs (Decentralized Identifiers)
+   - Create persistent user profiles without central servers
+
+4. **Distributed Data Storage**:
+   - Store chat history using IPFS
+   - Implement Orbit-DB for distributed databases
