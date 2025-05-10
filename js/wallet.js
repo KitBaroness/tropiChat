@@ -52,19 +52,45 @@ const wallet = (function() {
      * Just a simple check to update the UI accordingly
      */
     function checkForWallets() {
+        // Check for standard Ethereum providers
         const hasEthereum = typeof window.ethereum !== 'undefined';
+        
+        // Check for Solana providers
         const hasSolana = typeof window.solana !== 'undefined' && typeof window.solana.connect === 'function';
         
-        console.log("Wallet check:", { hasEthereum, hasSolana });
+        // Check for wallet connect
+        const hasWalletConnect = typeof window.WalletConnectProvider !== 'undefined';
         
-        // Update UI based on wallet availability
-        if (walletStatus && !hasEthereum && !hasSolana && !_isMobile) {
+        // Check for Web3 (older implementation)
+        const hasWeb3 = typeof window.web3 !== 'undefined';
+        
+        // Check for specific browser wallets
+        const hasBraveWallet = !!navigator.brave || (hasEthereum && window.ethereum.isBraveWallet);
+        const hasFirefoxWallet = navigator.userAgent.indexOf("Firefox") != -1 && (hasEthereum || hasWeb3);
+        
+        console.log("Wallet check:", { 
+            hasEthereum, 
+            hasSolana, 
+            hasWalletConnect,
+            hasWeb3,
+            hasBraveWallet,
+            hasFirefoxWallet,
+            isMobile: _isMobile
+        });
+        
+        // For mobile, always assume wallets are available through deep links
+        if (_isMobile) {
+            return true;
+        }
+        
+        // Update UI based on wallet availability for desktop
+        if (walletStatus && !hasEthereum && !hasSolana && !hasWalletConnect && !hasWeb3) {
             walletStatus.innerHTML = `
                 <p style="color: #ffaa00;">No wallet detected on desktop. You need to install a wallet to join the chat.</p>
             `;
         }
         
-        return hasEthereum || hasSolana || _isMobile;
+        return hasEthereum || hasSolana || hasWalletConnect || hasWeb3 || hasBraveWallet || hasFirefoxWallet;
     }
     
     /**
@@ -184,6 +210,9 @@ const wallet = (function() {
                         <span>Trust</span>
                     </div>
                 </div>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button id="demo-wallet-button" class="glow-button">Continue with Demo Wallet</button>
+                </div>
                 <p style="font-size: 11px; margin-top: 15px; color: #999999;">
                     Don't have a wallet? 
                     <a href="https://metamask.io/download/" target="_blank" style="color: #00ffff;">Get MetaMask</a>
@@ -235,7 +264,41 @@ const wallet = (function() {
             document.getElementById('phantom-mobile').addEventListener('click', () => connectMobileWallet('phantom'));
             document.getElementById('coinbase-mobile').addEventListener('click', () => connectMobileWallet('coinbase'));
             document.getElementById('trust-mobile').addEventListener('click', () => connectMobileWallet('trust'));
+            
+            // Add demo wallet option for Wallet Explorer and other browsers
+            const demoWalletButton = document.getElementById('demo-wallet-button');
+            if (demoWalletButton) {
+                demoWalletButton.addEventListener('click', () => {
+                    useDemoWallet();
+                });
+            }
         }
+    }
+    
+    /**
+     * Use a demo wallet for environments where normal wallet connection doesn't work
+     * This is particularly useful for Wallet Explorer app or browsers that block deep links
+     */
+    function useDemoWallet() {
+        if (walletStatus) {
+            walletStatus.innerHTML = `
+                <p style="color: #ffcc00;">Connecting demo wallet...</p>
+                <div class="spinner"></div>
+            `;
+        }
+        
+        // Simulate a delay for connection
+        setTimeout(() => {
+            // Generate a demo wallet address
+            const randomAddr = '0x' + Array.from({length: 40}, () => 
+                Math.floor(Math.random() * 16).toString(16)).join('');
+            
+            _walletAddress = randomAddr;
+            _walletConnected = true;
+            _providerName = "Demo Wallet";
+            
+            showSuccessMessage();
+        }, 1500);
     }
     
     /**
@@ -245,30 +308,46 @@ const wallet = (function() {
     function connectMobileWallet(walletType) {
         console.log(`Attempting to connect to ${walletType} mobile...`);
         
-        // Get the current URL (we'll need it for deep links)
-        const currentUrl = encodeURIComponent(window.location.href);
+        // Universal links and specific redirects for wallet apps
+        const protocol = window.location.protocol;
+        const hostname = window.location.host;
+        const pathname = window.location.pathname;
+        const fullUrl = encodeURIComponent(window.location.href);
+        const currentUrl = protocol + '//' + hostname + pathname;
+        const encodedUrl = encodeURIComponent(currentUrl);
+        
         let deepLink = '';
+        let fallbackURL = '';
         
         switch (walletType) {
             case 'metamask':
-                // MetaMask mobile deep link
-                deepLink = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+                // MetaMask mobile deep link - multiple formats for better compatibility
+                deepLink = `metamask://dapp/${hostname}${pathname}`;
+                fallbackURL = `https://metamask.app.link/dapp/${hostname}${pathname}`;
                 _providerName = 'MetaMask';
                 break;
             case 'phantom':
-                // Phantom mobile deep link
-                deepLink = `https://phantom.app/ul/browse/${window.location.host}${window.location.pathname}`;
+                // Phantom mobile deep link - multiple formats for compatibility
+                deepLink = `phantom://browse/${hostname}${pathname}`;
+                fallbackURL = `https://phantom.app/ul/browse/${hostname}${pathname}`;
                 _providerName = 'Phantom';
                 break;
             case 'coinbase':
                 // Coinbase Wallet deep link
-                deepLink = `https://go.cb-w.com/dapp?cb_url=${currentUrl}`;
+                deepLink = `coinbasewallet://dapp/${hostname}${pathname}`;
+                fallbackURL = `https://go.cb-w.com/dapp?cb_url=${fullUrl}`;
                 _providerName = 'Coinbase Wallet';
                 break;
             case 'trust':
                 // Trust Wallet deep link
-                deepLink = `https://link.trustwallet.com/open_url?url=${currentUrl}`;
+                deepLink = `trust://browse?url=${encodedUrl}`;
+                fallbackURL = `https://link.trustwallet.com/open_url?url=${encodedUrl}`;
                 _providerName = 'Trust Wallet';
+                break;
+            case 'walletconnect':
+                // Wallet Connect 
+                fallbackURL = `https://metamask.app.link/dapp/${hostname}${pathname}`;
+                _providerName = 'WalletConnect';
                 break;
             default:
                 if (walletStatus) {
@@ -292,28 +371,52 @@ const wallet = (function() {
             walletStatus.innerHTML = `
                 <p style="color: #ffcc00;">Launching ${_providerName}...</p>
                 <div class="spinner"></div>
-                <p style="font-size: 11px; margin-top: 10px; color: #999999;">
-                    If ${_providerName} doesn't open automatically, 
-                    <a href="${deepLink}" style="color: #00ffff;">click here</a>
-                </p>
+                <div class="deeplink-notification">
+                    <p>If ${_providerName} doesn't open automatically:</p>
+                    <a href="${deepLink}" class="manual-link">Open ${_providerName}</a>
+                    <p style="margin-top: 10px; font-size: 11px;">
+                        Not working? <a href="${fallbackURL}" style="color: #00ffff;">Try this link</a>
+                    </p>
+                </div>
             `;
         }
         
-        // Open the deep link
-        window.location.href = deepLink;
+        // First try the main deep link
+        try {
+            window.location.href = deepLink;
+        } catch (e) {
+            console.error("Error with primary deep link:", e);
+            // If that fails, try the fallback URL
+            try {
+                setTimeout(() => {
+                    window.location.href = fallbackURL;
+                }, 500);
+            } catch (e2) {
+                console.error("Error with fallback URL:", e2);
+            }
+        }
         
         // For demo purposes, also simulate success after a timeout
         // In a real implementation, this would be handled by the wallet app's callback
         setTimeout(() => {
-            // Simulate a random wallet address for demo purposes
-            const randomAddr = '0x' + Array.from({length: 40}, () => 
-                Math.floor(Math.random() * 16).toString(16)).join('');
+            // Create a simulated wallet address based on the wallet type for demo
+            let randomAddr;
+            
+            if (walletType === 'phantom') {
+                // Solana-style address
+                randomAddr = Array.from({length: 32}, () => 
+                    Math.floor(Math.random() * 16).toString(16)).join('');
+            } else {
+                // Ethereum-style address
+                randomAddr = '0x' + Array.from({length: 40}, () => 
+                    Math.floor(Math.random() * 16).toString(16)).join('');
+            }
             
             _walletAddress = randomAddr;
             _walletConnected = true;
             
             showSuccessMessage();
-        }, 3000);
+        }, 5000);
     }
     
     /**
@@ -323,8 +426,16 @@ const wallet = (function() {
         try {
             let accounts = [];
             
-            // Request accounts access - this will trigger the wallet popup
-            accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            // Firefox and some other browsers may have ethereum but need a different approach
+            if (!window.ethereum.request && window.ethereum.enable) {
+                // Legacy method (for Firefox with some wallets)
+                accounts = await window.ethereum.enable();
+                console.log("Used legacy ethereum.enable() method");
+            } else {
+                // Standard method
+                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                console.log("Used standard ethereum.request() method");
+            }
             
             if (accounts && accounts.length > 0) {
                 _walletAddress = accounts[0];
@@ -337,13 +448,19 @@ const wallet = (function() {
                     _providerName = "Brave Wallet";
                 } else if (window.ethereum.isCoinbaseWallet) {
                     _providerName = "Coinbase Wallet";
+                } else if (navigator.userAgent.indexOf("Firefox") != -1) {
+                    _providerName = "Firefox Wallet";
                 } else {
                     _providerName = "Ethereum Wallet";
                 }
                 
-                // Set up event listeners
-                window.ethereum.on('accountsChanged', handleAccountsChanged);
-                window.ethereum.on('disconnect', handleDisconnect);
+                // Set up event listeners (with error handling for Firefox)
+                try {
+                    window.ethereum.on('accountsChanged', handleAccountsChanged);
+                    window.ethereum.on('disconnect', handleDisconnect);
+                } catch (eventError) {
+                    console.warn("Could not set up ethereum event listeners:", eventError.message);
+                }
                 
                 showSuccessMessage();
                 return true;
