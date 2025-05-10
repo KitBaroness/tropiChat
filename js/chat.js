@@ -1,9 +1,12 @@
 /**
  * Chat functionality module for TropiChat
+ * Updated to work with Socket.io for multi-user functionality
  */
 const chat = (function() {
     // Private variables
     let _currentUser = null;
+    let _typingTimeout = null;
+    let _isTyping = false;
     
     // DOM elements
     const loginModal = document.getElementById('login-modal');
@@ -27,16 +30,61 @@ const chat = (function() {
             }
         });
         
-        // Populate mock users
-        populateMockUsers();
+        // Add typing indicator event
+        messageInput.addEventListener('input', handleTypingInput);
         
-        // Welcome messages
-        addSystemMessage(CONFIG.SYSTEM_MESSAGES.WELCOME);
-        addSystemMessage("Type /help for available commands.");
+        // Initialize socket connection
+        if (typeof chatSocket !== 'undefined') {
+            chatSocket.init();
+            
+            // Set up socket event handlers
+            chatSocket.onMessage(handleIncomingMessage);
+            chatSocket.onUserJoined(handleUserJoined);
+            chatSocket.onUserLeft(handleUserLeft);
+            chatSocket.onActiveUsers(updateOnlineUsers);
+            chatSocket.onTyping(handleUserTyping);
+            chatSocket.onError(handleSocketError);
+            
+            console.log('Chat module initialized with socket connection');
+        } else {
+            console.log('Chat module initialized in standalone mode');
+            
+            // Show welcome messages in standalone mode
+            addSystemMessage(CONFIG.SYSTEM_MESSAGES.WELCOME);
+            addSystemMessage("Type /help for available commands.");
+            
+            // Populate mock users in standalone mode
+            populateMockUsers();
+        }
     }
     
     /**
-     * Add mock users to the online users list
+     * Handle typing input for typing indicator
+     */
+    function handleTypingInput() {
+        // Only send typing events if we have a socket connection
+        if (typeof chatSocket === 'undefined' || !chatSocket.isConnected()) return;
+        
+        // If not currently typing, send typing start
+        if (!_isTyping) {
+            _isTyping = true;
+            chatSocket.sendTyping(true);
+        }
+        
+        // Clear existing timeout
+        if (_typingTimeout) {
+            clearTimeout(_typingTimeout);
+        }
+        
+        // Set timeout to stop typing indicator after 2 seconds
+        _typingTimeout = setTimeout(() => {
+            _isTyping = false;
+            chatSocket.sendTyping(false);
+        }, 2000);
+    }
+    
+    /**
+     * Add mock users to the online users list (standalone mode)
      */
     function populateMockUsers() {
         CONFIG.MOCK_USERS.forEach(user => {
@@ -52,18 +100,19 @@ const chat = (function() {
     /**
      * Enter chat with username
      */
-    function enterChat() {
+    async function enterChat() {
         const username = usernameInput.value.trim();
         
         if (username) {
-            // Get wallet address
-            const address = wallet.getAddress();
-            const walletProvider = wallet.getProviderName();
+            // Get wallet address and provider if available
+            const address = typeof wallet !== 'undefined' ? wallet.getAddress() : null;
+            const walletProvider = typeof wallet !== 'undefined' ? wallet.getProviderName() : 'Demo Wallet';
             
+            // Create user object
             _currentUser = {
                 name: username,
                 color: CONFIG.USER_COLORS[Math.floor(Math.random() * CONFIG.USER_COLORS.length)],
-                wallet: address,
+                wallet: address || '0x' + Array.from({length: 40}, () => Math.floor(Math.random() * 16).toString(16)).join(''),
                 provider: walletProvider
             };
             
@@ -74,24 +123,56 @@ const chat = (function() {
             messageInput.disabled = false;
             sendButton.disabled = false;
             
-            // Add user to online users
-            const userElement = document.createElement('div');
-            userElement.classList.add('online-user');
-            userElement.textContent = _currentUser.name;
-            userElement.style.color = _currentUser.color;
-            onlineUsersContainer.appendChild(userElement);
-            
-            // Announce user joined
-            addSystemMessage(`${_currentUser.name} has joined the chat!`);
+            try {
+                // If we have a socket connection and wallet, use proper authentication
+                if (typeof chatSocket !== 'undefined' && chatSocket.isConnected() && 
+                    typeof wallet !== 'undefined' && wallet.isConnected()) {
+                    
+                    // Try to sign a message for authentication if supported
+                    let signature = null;
+                    let message = null;
+                    
+                    if (typeof wallet.signMessage === 'function') {
+                        try {
+                            message = `TropiChat Authentication\nTimestamp: ${Date.now()}\nWallet: ${_currentUser.wallet}`;
+                            signature = await wallet.signMessage(message);
+                            console.log('Signed authentication message');
+                        } catch (error) {
+                            console.warn('Could not sign message:', error);
+                        }
+                    }
+                    
+                    // Join chat via socket
+                    chatSocket.join({
+                        username: _currentUser.name,
+                        walletAddress: _currentUser.wallet,
+                        walletType: _currentUser.provider,
+                        color: _currentUser.color,
+                        signature,
+                        message
+                    });
+                } else {
+                    // Standalone mode - add user to UI directly
+                    
+                    // Add user to online users
+                    const userElement = document.createElement('div');
+                    userElement.classList.add('online-user');
+                    userElement.textContent = _currentUser.name;
+                    userElement.style.color = _currentUser.color;
+                    onlineUsersContainer.appendChild(userElement);
+                    
+                    // Announce user joined
+                    addSystemMessage(`${_currentUser.name} has joined the chat!`);
+                }
+            } catch (error) {
+                console.error('Error joining chat:', error);
+                addSystemMessage(`Error joining chat: ${error.message}`);
+            }
             
             // Save user profile if the app has this function available
             if (window.appFunctions && window.appFunctions.saveUserProfile) {
-                window.appFunctions.saveUserProfile(address, username);
+                window.appFunctions.saveUserProfile(_currentUser.wallet, username);
             }
-            
-            // If you're implementing server-side functionality later,
-            // this is where you would emit a "join" event to the server
-            // Example: socket.emit('join', { username, address, color: _currentUser.color });
         } else {
             alert('Please enter a username!');
         }
@@ -168,11 +249,14 @@ const chat = (function() {
             if (messageText.startsWith('/')) {
                 handleCommand(messageText);
             } else {
-                // Regular message
-                addUserMessage(_currentUser, messageText);
-                
-                // Simulate responses from mock users
-                simulateMockResponses();
+                // If we have a socket connection, send via socket
+                if (typeof chatSocket !== 'undefined' && chatSocket.isConnected()) {
+                    chatSocket.sendMessage(messageText);
+                } else {
+                    // Standalone mode - add message directly and simulate responses
+                    addUserMessage(_currentUser, messageText);
+                    simulateMockResponses();
+                }
             }
             
             // Clear input
@@ -241,6 +325,101 @@ const chat = (function() {
             messageInput.value += emoji;
             messageInput.focus();
         }
+    }
+    
+    /**
+     * Handle incoming message from socket
+     * @param {Object} message - Message data
+     * @param {Boolean} isHistory - Whether this is a history message
+     */
+    function handleIncomingMessage(message, isHistory = false) {
+        // Check if this is our own message or from another user
+        const isOwnMessage = message.walletAddress === _currentUser.wallet;
+        
+        // Create display name
+        const displayName = isOwnMessage ? 'You' : message.username;
+        
+        // Add message to chat
+        addUserMessage({
+            name: displayName,
+            color: message.color || (isOwnMessage ? _currentUser.color : '#FFFFFF')
+        }, message.content);
+        
+        // Only scroll for non-history messages
+        if (!isHistory) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+    
+    /**
+     * Handle user joined event from socket
+     * @param {Object} data - User data
+     */
+    function handleUserJoined(data) {
+        addSystemMessage(`${data.username} has joined the chat!`);
+    }
+    
+    /**
+     * Handle user left event from socket
+     * @param {Object} data - User data
+     */
+    function handleUserLeft(data) {
+        addSystemMessage(`${data.username} has left the chat.`);
+    }
+    
+    /**
+     * Update online users list from socket data
+     * @param {Array} users - Array of user objects
+     */
+    function updateOnlineUsers(users) {
+        // Clear current list
+        onlineUsersContainer.innerHTML = '';
+        
+        // Add current users
+        users.forEach(user => {
+            const userElement = document.createElement('div');
+            userElement.classList.add('online-user');
+            userElement.textContent = user.username;
+            userElement.style.color = user.color || '#FFFFFF';
+            onlineUsersContainer.appendChild(userElement);
+        });
+    }
+    
+    /**
+     * Handle user typing event from socket
+     * @param {Object} data - Typing data
+     */
+    function handleUserTyping(data) {
+        // Check if typing indicator element exists
+        let typingIndicator = document.getElementById('typing-indicator');
+        
+        if (data.isTyping) {
+            // Create or update typing indicator
+            if (!typingIndicator) {
+                typingIndicator = document.createElement('div');
+                typingIndicator.id = 'typing-indicator';
+                typingIndicator.classList.add('typing-indicator');
+                typingIndicator.innerHTML = `<span></span><span></span><span></span>`;
+                typingIndicator.style.display = 'none';
+                chatMessages.appendChild(typingIndicator);
+            }
+            
+            // Show typing indicator with username
+            typingIndicator.textContent = `${data.username} is typing...`;
+            typingIndicator.style.display = 'block';
+        } else if (typingIndicator) {
+            // Hide typing indicator
+            typingIndicator.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Handle socket error
+     * @param {Object} error - Error data
+     */
+    function handleSocketError(error) {
+        console.error('Socket error:', error);
+        addSystemMessage(`Error: ${error.message || 'Unknown error'}`);
     }
     
     /**
