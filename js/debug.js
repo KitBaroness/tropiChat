@@ -1,4 +1,79 @@
 /**
+ * Toggle mobile device simulation
+ */
+function toggleMobileSimulation() {
+    const body = document.body;
+    const isMobileSimulated = body.classList.contains('mobile-simulated');
+    
+    if (isMobileSimulated) {
+        // Turn off mobile simulation
+        body.classList.remove('mobile-simulated');
+        log('Mobile device simulation disabled', 'info');
+        
+        // Force reload to reset UI
+        if (confirm('Reload page to reset UI?')) {
+            window.location.reload();
+        }
+    } else {
+        // Turn on mobile simulation
+        body.classList.add('mobile-simulated');
+        log('Mobile device simulation enabled', 'success');
+        
+        // Set a global flag that wallet.js can check
+        window.simulateMobileDevice = true;
+        
+        // Try to update UI for mobile
+        if (typeof window.appFunctions !== 'undefined' && 
+            typeof window.appFunctions.updateForMobile === 'function') {
+            window.appFunctions.updateForMobile();
+            log('UI updated for simulated mobile device', 'success');
+        } else {
+            log('Could not update UI - try reloading the page', 'warning');
+        }
+    }
+}
+
+/**
+ * Test deep link for mobile wallet
+ * @param {String} walletType - Type of wallet to test
+ */
+function testDeepLink(walletType) {
+    log(`Testing deep link for ${walletType}...`, 'info');
+    
+    // Get the current URL
+    const currentUrl = encodeURIComponent(window.location.href);
+    let deepLink = '';
+    
+    switch (walletType.toLowerCase()) {
+        case 'metamask':
+            // MetaMask mobile deep link
+            deepLink = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+            break;
+        case 'phantom':
+            // Phantom mobile deep link
+            deepLink = `https://phantom.app/ul/browse/${window.location.host}${window.location.pathname}`;
+            break;
+        case 'coinbase':
+            // Coinbase Wallet deep link
+            deepLink = `https://go.cb-w.com/dapp?cb_url=${currentUrl}`;
+            break;
+        case 'trust':
+            // Trust Wallet deep link
+            deepLink = `https://link.trustwallet.com/open_url?url=${currentUrl}`;
+            break;
+        default:
+            log(`Unknown wallet type: ${walletType}`, 'error');
+            log('Valid options are: metamask, phantom, coinbase, trust', 'info');
+            return;
+    }
+    
+    log(`Deep link: ${deepLink}`, 'info');
+    
+    // Ask if the user wants to open the link
+    if (confirm(`Open ${walletType} deep link? This will try to launch the wallet app.`)) {
+        window.open(deepLink, '_blank');
+    }
+}/**
  * Debug console for TropiChat
  * Helps troubleshoot wallet connection issues
  */
@@ -216,12 +291,23 @@ function runCommand() {
             log('  localStorage - Show localStorage items', 'info');
             log('  resetWallet - Reset wallet connection', 'info');
             log('  checkNetwork - Check connected network', 'info');
+            log('  toggleMobile - Toggle mobile device simulation', 'info');
+            log('  openDeepLink [wallet] - Test wallet deep link', 'info');
         } else if (command === 'localStorage') {
             logLocalStorage();
         } else if (command === 'resetWallet') {
             resetWalletConnection();
         } else if (command === 'checkNetwork') {
             checkNetwork();
+        } else if (command === 'toggleMobile') {
+            toggleMobileSimulation();
+        } else if (command.startsWith('openDeepLink')) {
+            const parts = command.split(' ');
+            if (parts.length > 1) {
+                testDeepLink(parts[1]);
+            } else {
+                log('Usage: openDeepLink [metamask|phantom|coinbase|trust]', 'error');
+            }
         } else {
             // Try to evaluate the command
             const result = eval(command);

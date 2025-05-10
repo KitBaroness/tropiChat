@@ -1,4 +1,101 @@
-/* Main Styles */
+/* Mobile Wallet Selection */
+.mobile-wallets {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+    margin: 15px 0;
+}
+
+.wallet-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 75px;
+    padding: 10px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 51, 0.5);
+    border: 1px solid #00ffff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.wallet-option:hover, .wallet-option:active {
+    background-color: rgba(0, 40, 80, 0.7);
+    transform: translateY(-3px);
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+.wallet-option img {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 3px rgba(0, 255, 255, 0.5));
+}
+
+.wallet-option span {
+    font-size: 12px;
+    color: #ffffff;
+    text-shadow: 0 0 5px #00ffff;
+}
+
+/* Different size for mobile devices */
+@media (max-width: 480px) {
+    .login-box {
+        width: 280px;
+        padding: 15px;
+    }
+    
+    .mobile-wallets {
+        gap: 10px;
+    }
+    
+    .wallet-option {
+        width: 65px;
+        padding: 8px;
+    }
+    
+    .wallet-option img {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .wallet-option span {
+        font-size: 11px;
+    }
+}
+
+/* Deep Link Notification */
+.deeplink-notification {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: rgba(0, 0, 51, 0.7);
+    border-radius: 8px;
+    border: 1px dashed #00ffff;
+}
+
+.deeplink-notification p {
+    font-size: 12px;
+    color: #ffcc00;
+    margin: 0;
+}
+
+.manual-link {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 5px 10px;
+    background-color: #00ffff;
+    color: #000033 !important;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.manual-link:hover {
+    background-color: #ff00ff;
+    transform: scale(1.05);
+}/* Main Styles */
 body {
     background-color: #000033;
     background-image: url('https://i.gifer.com/embedded/download/Wg1.gif');

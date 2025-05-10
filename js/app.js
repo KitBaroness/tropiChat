@@ -29,8 +29,35 @@
         // Initialize chat module
         chat.init();
         
+        // Update UI for mobile if needed
+        if (wallet.isMobileDevice()) {
+            updateForMobile();
+        }
+        
         appState.initialized = true;
         console.log(`${CONFIG.APP_NAME} initialization complete.`);
+    }
+    
+    /**
+     * Update UI for mobile devices
+     */
+    function updateForMobile() {
+        // Add mobile-specific classes to body
+        document.body.classList.add('mobile-device');
+        
+        // Update login button text
+        const connectButton = document.getElementById('connect-wallet');
+        if (connectButton) {
+            connectButton.innerText = 'Connect Mobile Wallet';
+        }
+        
+        // Update welcome message
+        const welcomeText = document.querySelector('.login-box p:first-of-type');
+        if (welcomeText) {
+            welcomeText.innerText = 'Connect your mobile wallet to chat!';
+        }
+        
+        console.log("UI updated for mobile device");
     }
     
     /**
@@ -127,7 +154,8 @@
     
     // Expose necessary functions to window scope for callbacks
     window.appFunctions = {
-        saveUserProfile
+        saveUserProfile,
+        updateForMobile
     };
     
 })();
